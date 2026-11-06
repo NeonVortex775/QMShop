@@ -1,0 +1,91 @@
+# ┌─────────────────────────────────────────────────────────────┐
+# │  示例商店：灵材商行                                          │
+# │  文件名（去掉 .yml）= 商店 ID，/shop 灵材 可直接打开           │
+# └─────────────────────────────────────────────────────────────┘
+
+title: "&6青冥 · 灵材商行"
+
+# 界面布局：这一项可以整段删掉，全部使用 config.yml 的默认值
+# 也可以只写想改的几项，其余自动继承默认值
+layout:
+  width: 760
+  rows: 4
+  row-height: 48
+  row-gap: 6
+  panel-height: 92
+
+items:
+  # ── 商品 1 ────────────────────────────────────────────────
+  - display:                     # 左边格子里的展示物
+      material: DIAMOND
+      name: "&b一阶灵根"
+      lore:
+        - "&7蕴含天地灵气的基础灵材"
+    amount: 1                    # 每份给几个
+    price:                       # 需要的东西，可以写多个，全部扣除
+      - type: item
+        material: STONE
+        amount: 2
+      - type: points             # 点券（PlayerPoints）
+        amount: 100
+      - type: money              # 金币（Vault / Essentials）
+        amount: 500
+
+  # ── 商品 2 ────────────────────────────────────────────────
+  - display:
+      material: BLAZE_POWDER
+      name: "&c妖丹·赤"
+      lore:
+        - "&7火属性妖兽的内丹"
+      glow: true
+    amount: 1
+    price:
+      - type: item
+        material: STONE
+        amount: 3
+      - type: money
+        amount: 1200
+
+  # ── 商品 3 ────────────────────────────────────────────────
+  - display:
+      material: PAPER
+      name: "&e聚气丹"
+      lore:
+        - "&7服用后短时间内修炼速度提升"
+    amount: 1
+    price:
+      - type: points
+        amount: 250
+
+  # ── 商品 4 ────────────────────────────────────────────────
+  - display:
+      material: IRON_INGOT
+      name: "&f玄铁锭"
+      lore:
+        - "&7锻造上品法宝的材料"
+    amount: 1
+    price:
+      - type: item
+        material: STONE
+        amount: 8
+      - type: money
+        amount: 300
+
+  # ── 商品 5：用 NeigeItems 物品当商品（ni: 填物品ID） ──────
+  # - display:
+  #     ni: "青冥灵根"           # 装了 NeigeItems 才能用
+  #   amount: 1
+  #   price:
+  #     - type: money
+  #       amount: 5000
+
+  # ── 商品 6：购买后额外执行指令 ────────────────────────────
+  # - display:
+  #     material: NETHER_STAR
+  #     name: "&d秘境入场券"
+  #   amount: 1
+  #   price:
+  #     - type: points
+  #       amount: 800
+  #   commands:
+  #     - "say %player% 购买了秘境入场券"

@@ -1,0 +1,139 @@
+# ┌─────────────────────────────────────────────────────────────┐
+# │  测试商店：青冥 · 百宝阁                                     │
+# │  文件名（去掉 .yml）= 商店 ID，/shop 测试 可直接打开          │
+# │  共 8 个商品，一页 4 个 → 第 2 页可测翻页箭头                 │
+# │  注意：需求物品的 name/lore 是「匹配条件」，不是显示标签，     │
+# │  写了就得背包里真有那个名字的物品才会计数，测试商店一律不写    │
+# └─────────────────────────────────────────────────────────────┘
+
+title: "&6青冥 · 百宝阁"
+
+layout:
+  width: 760
+  rows: 4
+  row-height: 48
+  row-gap: 6
+  panel-height: 92
+
+items:
+  # ── 1 纯金币 ──────────────────────────────────────────────
+  - display:
+      material: EMERALD
+      name: "&a下品灵石"
+      lore:
+        - "&7最常见的下品灵石，碎成粉末"
+        - "&8可用于低阶阵法铺垫"
+      glow: true
+    amount: 1
+    price:
+      - type: money
+        amount: 500
+
+  # ── 2 纯点券 ──────────────────────────────────────────────
+  - display:
+      material: PAPER
+      name: "&e聚气丹"
+      lore:
+        - "&7服用后短时间内修为增益"
+        - "&8丹香清苦，入口即化"
+    amount: 1
+    price:
+      - type: points
+        amount: 120
+
+  # ── 3 物品 + 金币 ─────────────────────────────────────────
+  - display:
+      material: IRON_INGOT
+      name: "&f玄铁锭"
+      lore:
+        - "&7锻造上品法宝的材料"
+    amount: 1
+    price:
+      - type: item
+        material: COBBLESTONE
+        amount: 8
+      - type: money
+        amount: 300
+
+  # ── 4 物品 + 点券 + 金币（四种需求，测横条需求区排布）────────
+  - display:
+      material: BLAZE_POWDER
+      name: "&c妖丹 · 赤"
+      lore:
+        - "&7三阶妖兽火属性内丹"
+        - "&8丹中仍有余温"
+      glow: true
+    amount: 1
+    price:
+      - type: item
+        material: COBBLESTONE
+        amount: 3
+      - type: item
+        material: COAL
+        amount: 5
+      - type: points
+        amount: 80
+      - type: money
+        amount: 800
+
+  # ── 5 一买一叠（测 amount 与总价倍乘）────────────────────
+  - display:
+      material: IRON_BLOCK
+      name: "&b秘银块 &7×16"
+      lore:
+        - "&7轻若浮云，坚逾精钢"
+    amount: 16
+    price:
+      - type: money
+        amount: 800
+
+  # ── 6 购买后执行指令（测 commands）────────────────────────
+  - display:
+      material: NETHER_STAR
+      name: "&d秘境入场券"
+      lore:
+        - "&7凭此券可进入一次天渊秘境"
+        - "&8右击使用，仅限一人"
+    amount: 1
+    price:
+      - type: points
+        amount: 800
+    commands:
+      - "say %player% 购得一张秘境入场券"
+      - "give %player% paper 1"
+
+  # ── 7 需要权限（测「暂时不能购买」）──────────────────────
+  - display:
+      material: ENDER_PEARL
+      name: "&9天雷符"
+      lore:
+        - "&7引九霄天雷落下"
+        - "&8内门弟子方可兑换"
+    amount: 1
+    permission: "qingmingshop.vip"
+    price:
+      - type: points
+        amount: 500
+      - type: money
+        amount: 900
+
+  # ── 8 带 NBT 的高阶物（测 nbt 应用）──────────────────────
+  - display:
+      material: DIAMOND
+      name: "&6混沌灵根"
+      lore:
+        - "&7天地初开时残存的一缕本源"
+        - "&c不可多得"
+      glow: true
+      nbt:
+        qingming_root: "chaos"
+        qingming_grade: "1"
+    amount: 1
+    price:
+      - type: item
+        material: COBBLESTONE
+        amount: 64
+      - type: points
+        amount: 300
+      - type: money
+        amount: 900

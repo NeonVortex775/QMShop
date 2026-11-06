@@ -1,0 +1,89 @@
+# ┌─────────────────────────────────────────────────────────────┐
+# │  青冥商城 配置文件                                          │
+# │  shops/ 下每个 yml 是一个独立商店，界面布局可在各自 yml 内覆盖 │
+# └─────────────────────────────────────────────────────────────┘
+
+# /shop 不带参数时打开哪个商店（填 shops/ 下的文件名，不带 .yml）
+default-shop: "灵材"
+
+# 翻页 / 选择商品后界面的刷新方式
+#   reopen —— 先关掉再重新打开（默认）
+#   update —— 原地更新（不闪，但部分客户端刷新后按钮会失效）
+# 用 gui/ 里的自定义界面时这项不影响（那种界面每次都是整份重下发）
+refresh-mode: reopen
+
+# 默认界面布局（每个商店 yml 的 layout 段可以覆盖任意一项）
+gui:
+  # 是否使用 gui/ 目录里的自定义界面（龙核语法），关掉就只用内置动态界面
+  custom-enabled: true
+  # 打开界面时在控制台打印用了哪个模板（排查用）
+  debug: false
+  # 界面宽度；高度 = margin*2 + title-height + rows*row-height + (rows-1)*row-gap + 16 + panel-height
+  width: 760
+  # 每页商品行数（一个商品占一整条横条），超出自动翻页
+  rows: 4
+  row-height: 48
+  row-gap: 6
+  # 边框到内容的内边距
+  margin: 22
+  # 顶部标题区高度（标题牌 + 上下留白）
+  title-height: 52
+  # 底部购买框高度（未选中商品时留空并显示提示）
+  panel-height: 92
+  # 一条横条里最多显示几个"需要的东西"，超出只显示前几个
+  max-requirements: 4
+  # 贴图目录，相对 DragonCore 资源包根目录
+  texture-prefix: "商城/"
+
+# 需求图标：点券/金币在"需要的东西"格子里的显示物
+icons:
+  points:
+    material: PAPER
+    name: "&d点券"
+    lore:
+      - "&7商城通用货币"
+  money:
+    material: GOLD_NUGGET
+    name: "&6金币"
+    lore:
+      - "&7通用货币"
+
+# 经济设置
+economy:
+  # 提示里显示的名字
+  points-name: "点券"
+  money-name: "金币"
+  # 金币保留几位小数（Vault/Essentials 是 double）
+  money-decimals: 2
+
+# 数量选择
+quantity:
+  min: 1
+  max: 9999
+  # 小箭头步长 / 双箭头步长
+  step: 1
+  big-step: 10
+  # 打开界面时默认数量
+  default: 1
+
+# 提示文本（支持 & 颜色符号）
+messages:
+  no-permission: "&c你没有权限打开这个商店"
+  no-shop: "&c没有找到商店: &f%shop%"
+  no-shop-permission: "&c你暂时不能购买这个商品"
+  not-enough-item: "&c缺少 &f%need% &c个 &f%item%&c（当前 &f%have%&c）"
+  not-enough-points: "&c%s 不足：需要 &f%need%&c，当前 &f%have%"
+  not-enough-money: "&c%s 不足：需要 &f%need%&c，当前 &f%have%"
+  inventory-full: "&e背包已满，物品掉落在脚下"
+  bought: "&a购买成功：&f%item% &7×%amount%"
+  need-select: "&7请先点右侧「选择」"
+  qty-hint: "&7用两侧的箭头调整数量（单箭头 1 个，双箭头 10 个）"
+  reloaded: "&a商城配置已重载，共 &f%count% &a个商店"
+  only-player: "&c这个命令只能玩家使用"
+  no-economy: "&c服务器没有可用的经济插件（Vault/Essentials）"
+
+# 音效（1.12.2 原版音效名，留空则不播放）
+sounds:
+  click: "UI_BUTTON_CLICK"
+  buy: "ENTITY_PLAYER_LEVELUP"
+  fail: "ENTITY_VILLAGER_NO"

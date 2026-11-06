@@ -1,0 +1,798 @@
+# ═══════════════════════════════════════════════════════════════════
+#  青冥商城 · 自定义界面（语法与龙核 DragonCore 的 Gui 完全一致）
+#  ───────────────────────────────────────────────────────────────────
+#  这个文件放在 plugins/QingMingShop/gui/ 下，改完 /shop reload 生效。
+#
+#  match: 匹配哪个商店。填 shops/ 下的文件名（不带 .yml），
+#         或者填 "*" 表示所有商店通用。
+#         有同名商店时优先用 match 等于商店名的那个模板。
+#
+#  size:  [宽, 高] —— 不写就用商店 layout 里的尺寸
+#  rows:  这个界面画了几行商品 —— 不写就用商店 layout.rows
+#
+#  ── 插件认的组件名（名字必须以这些开头，插件才知道往哪填数据）──
+#  行1名 ~ 行4名        label，自动填商品名
+#  行1价 ~ 行4价        label，自动填这一行的「需要 xxx」
+#  行1图标 ~ 行4图标     slot，自动塞商品图标
+#  行1需求1 ~ 行1需求4   slot，自动塞第 1~4 项需求的图标
+#  行1选择字             label，选中时显示「已选」，否则「选择」
+#  面板xxx              没选中商品时整组隐藏
+#  面板数量 / 面板合计   自动填当前数量和「数量 × 商品 合计」
+#  提示xxx              没选中时显示
+#  标题 / 页码 / 上一页 / 下一页
+#
+#  ── 关于坐标（重要）──
+#  所有组件的 x 都写成  (w-760)/2+数字，y 写成 (h-414)/2+数字。
+#  w / h 是屏幕（GUI 缩放后）的宽高，减掉界面尺寸再除以 2 = 居中。
+#  所以这个界面在任何分辨率下都居中显示，不会贴在屏幕左上角。
+#  想整体挪动：只改 (w-760) / (h-414) 这两个数字，别去动后面的偏移量。
+#  想加组件：照抄一行，x 写 (w-760)/2+新x，y 写 (h-414)/2+新y。
+#
+#  ── 可用变量（写在任何字符串里都会被替换）──
+#  {w} {h} {shop} {title} {page} {pages} {qty} {rows} {step} {big}
+#  行组件里另可用 {index}（商品下标）和 {row}（行号）
+#
+#  ── 按钮怎么调插件 ──
+#  方法.发包('QingMingShop', '动作', '参数')
+#    select {index}     选中第几个商品
+#    qty 1 / qty -1     数量增减（可配合 {step} {big}）
+#    qty set 8          直接设成 8
+#    page 1 / page -1   翻页
+#    buy / cancel       购买 / 取消选择
+#    open <商店ID>      切换商店
+#    close              关闭
+#  可以写成：方法.发包('QingMingShop', 'qty', '-{step}')
+# ═══════════════════════════════════════════════════════════════════
+
+match: "*"
+size: [760, 414]
+rows: 4
+
+
+# ── 底板 + 边框（9 宫格，角 88 px）─────────────────────
+底板:
+  type: texture
+  x: "(w-760)/2+88"
+  y: "(h-414)/2+88"
+  width: 584
+  height: 238
+  texture: "商城/边框_中.png"
+  visible: true
+边框左上:
+  type: texture
+  x: "(w-760)/2"
+  y: "(h-414)/2"
+  width: 88
+  height: 88
+  texture: "商城/边框_左上.png"
+  visible: true
+边框上:
+  type: texture
+  x: "(w-760)/2+88"
+  y: "(h-414)/2"
+  width: 584
+  height: 88
+  texture: "商城/边框_上.png"
+  visible: true
+边框右上:
+  type: texture
+  x: "(w-760)/2+672"
+  y: "(h-414)/2"
+  width: 88
+  height: 88
+  texture: "商城/边框_右上.png"
+  visible: true
+边框左:
+  type: texture
+  x: "(w-760)/2"
+  y: "(h-414)/2+88"
+  width: 88
+  height: 238
+  texture: "商城/边框_左.png"
+  visible: true
+边框右:
+  type: texture
+  x: "(w-760)/2+672"
+  y: "(h-414)/2+88"
+  width: 88
+  height: 238
+  texture: "商城/边框_右.png"
+  visible: true
+边框左下:
+  type: texture
+  x: "(w-760)/2"
+  y: "(h-414)/2+326"
+  width: 88
+  height: 88
+  texture: "商城/边框_左下.png"
+  visible: true
+边框下:
+  type: texture
+  x: "(w-760)/2+88"
+  y: "(h-414)/2+326"
+  width: 584
+  height: 88
+  texture: "商城/边框_下.png"
+  visible: true
+边框右下:
+  type: texture
+  x: "(w-760)/2+672"
+  y: "(h-414)/2+326"
+  width: 88
+  height: 88
+  texture: "商城/边框_右下.png"
+  visible: true
+
+# ── 标题与翻页 ────────────────────────────────────────
+标题牌:
+  type: texture
+  x: "(w-760)/2+220"
+  y: "(h-414)/2+12"
+  width: 320
+  height: 52
+  texture: "商城/标题牌.png"
+  visible: true
+标题:
+  type: label
+  x: "(w-760)/2+380"
+  y: "(h-414)/2+30"
+  texts: ["§6青冥商城"]
+  scale: 2
+  center: true
+  visible: true
+上一页:
+  type: texture
+  x: "(w-760)/2+180"
+  y: "(h-414)/2+25"
+  width: 26
+  height: 26
+  texture: "商城/箭头_左.png"
+  textureHovered: "商城/箭头_左_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'page', '-1')"
+  visible: true
+下一页:
+  type: texture
+  x: "(w-760)/2+554"
+  y: "(h-414)/2+25"
+  width: 26
+  height: 26
+  texture: "商城/箭头_右.png"
+  textureHovered: "商城/箭头_右_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'page', '1')"
+  visible: true
+页码:
+  type: label
+  x: "(w-760)/2+567"
+  y: "(h-414)/2+53"
+  texts: ["§71 / 1"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 第 1 行（想加行就复制这一段，把行1 改成行2）──────────
+行1条:
+  type: texture
+  x: "(w-760)/2+22"
+  y: "(h-414)/2+74"
+  width: 716
+  height: 48
+  texture: "商城/行条.png"
+  visible: true
+行1图标格:
+  type: texture
+  x: "(w-760)/2+34"
+  y: "(h-414)/2+81"
+  width: 34
+  height: 34
+  texture: "商城/格_34.png"
+  visible: true
+行1图标:
+  type: slot
+  x: "(w-760)/2+35"
+  y: "(h-414)/2+82"
+  width: 32
+  height: 32
+  identifier: "qmshop_slot"
+  visible: true
+行1名:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+88"
+  texts: ["§f商品"]
+  scale: 1
+  visible: true
+行1价:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+101"
+  texts: ["§7需要 3 金币"]
+  scale: 1
+  visible: true
+行1需求框1:
+  type: texture
+  x: "(w-760)/2+460"
+  y: "(h-414)/2+84"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行1需求1:
+  type: slot
+  x: "(w-760)/2+461"
+  y: "(h-414)/2+85"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行1需求框2:
+  type: texture
+  x: "(w-760)/2+496"
+  y: "(h-414)/2+84"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行1需求2:
+  type: slot
+  x: "(w-760)/2+497"
+  y: "(h-414)/2+85"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行1需求框3:
+  type: texture
+  x: "(w-760)/2+532"
+  y: "(h-414)/2+84"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行1需求3:
+  type: slot
+  x: "(w-760)/2+533"
+  y: "(h-414)/2+85"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行1需求框4:
+  type: texture
+  x: "(w-760)/2+568"
+  y: "(h-414)/2+84"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行1需求4:
+  type: slot
+  x: "(w-760)/2+569"
+  y: "(h-414)/2+85"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行1选择框:
+  type: texture
+  x: "(w-760)/2+610"
+  y: "(h-414)/2+81"
+  width: 116
+  height: 34
+  texture: "商城/按钮_选择.png"
+  textureHovered: "商城/按钮_选择_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'select', '{index}')"
+  visible: true
+行1选择字:
+  type: label
+  x: "(w-760)/2+668"
+  y: "(h-414)/2+94"
+  texts: ["§e选择"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 第 2 行（想加行就复制这一段，把行2 改成行3）──────────
+行2条:
+  type: texture
+  x: "(w-760)/2+22"
+  y: "(h-414)/2+128"
+  width: 716
+  height: 48
+  texture: "商城/行条.png"
+  visible: true
+行2图标格:
+  type: texture
+  x: "(w-760)/2+34"
+  y: "(h-414)/2+135"
+  width: 34
+  height: 34
+  texture: "商城/格_34.png"
+  visible: true
+行2图标:
+  type: slot
+  x: "(w-760)/2+35"
+  y: "(h-414)/2+136"
+  width: 32
+  height: 32
+  identifier: "qmshop_slot"
+  visible: true
+行2名:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+142"
+  texts: ["§f商品"]
+  scale: 1
+  visible: true
+行2价:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+155"
+  texts: ["§7需要 3 金币"]
+  scale: 1
+  visible: true
+行2需求框1:
+  type: texture
+  x: "(w-760)/2+460"
+  y: "(h-414)/2+138"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行2需求1:
+  type: slot
+  x: "(w-760)/2+461"
+  y: "(h-414)/2+139"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行2需求框2:
+  type: texture
+  x: "(w-760)/2+496"
+  y: "(h-414)/2+138"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行2需求2:
+  type: slot
+  x: "(w-760)/2+497"
+  y: "(h-414)/2+139"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行2需求框3:
+  type: texture
+  x: "(w-760)/2+532"
+  y: "(h-414)/2+138"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行2需求3:
+  type: slot
+  x: "(w-760)/2+533"
+  y: "(h-414)/2+139"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行2需求框4:
+  type: texture
+  x: "(w-760)/2+568"
+  y: "(h-414)/2+138"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行2需求4:
+  type: slot
+  x: "(w-760)/2+569"
+  y: "(h-414)/2+139"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行2选择框:
+  type: texture
+  x: "(w-760)/2+610"
+  y: "(h-414)/2+135"
+  width: 116
+  height: 34
+  texture: "商城/按钮_选择.png"
+  textureHovered: "商城/按钮_选择_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'select', '{index}')"
+  visible: true
+行2选择字:
+  type: label
+  x: "(w-760)/2+668"
+  y: "(h-414)/2+148"
+  texts: ["§e选择"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 第 3 行（想加行就复制这一段，把行3 改成行4）──────────
+行3条:
+  type: texture
+  x: "(w-760)/2+22"
+  y: "(h-414)/2+182"
+  width: 716
+  height: 48
+  texture: "商城/行条.png"
+  visible: true
+行3图标格:
+  type: texture
+  x: "(w-760)/2+34"
+  y: "(h-414)/2+189"
+  width: 34
+  height: 34
+  texture: "商城/格_34.png"
+  visible: true
+行3图标:
+  type: slot
+  x: "(w-760)/2+35"
+  y: "(h-414)/2+190"
+  width: 32
+  height: 32
+  identifier: "qmshop_slot"
+  visible: true
+行3名:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+196"
+  texts: ["§f商品"]
+  scale: 1
+  visible: true
+行3价:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+209"
+  texts: ["§7需要 3 金币"]
+  scale: 1
+  visible: true
+行3需求框1:
+  type: texture
+  x: "(w-760)/2+460"
+  y: "(h-414)/2+192"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行3需求1:
+  type: slot
+  x: "(w-760)/2+461"
+  y: "(h-414)/2+193"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行3需求框2:
+  type: texture
+  x: "(w-760)/2+496"
+  y: "(h-414)/2+192"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行3需求2:
+  type: slot
+  x: "(w-760)/2+497"
+  y: "(h-414)/2+193"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行3需求框3:
+  type: texture
+  x: "(w-760)/2+532"
+  y: "(h-414)/2+192"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行3需求3:
+  type: slot
+  x: "(w-760)/2+533"
+  y: "(h-414)/2+193"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行3需求框4:
+  type: texture
+  x: "(w-760)/2+568"
+  y: "(h-414)/2+192"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行3需求4:
+  type: slot
+  x: "(w-760)/2+569"
+  y: "(h-414)/2+193"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行3选择框:
+  type: texture
+  x: "(w-760)/2+610"
+  y: "(h-414)/2+189"
+  width: 116
+  height: 34
+  texture: "商城/按钮_选择.png"
+  textureHovered: "商城/按钮_选择_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'select', '{index}')"
+  visible: true
+行3选择字:
+  type: label
+  x: "(w-760)/2+668"
+  y: "(h-414)/2+202"
+  texts: ["§e选择"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 第 4 行（想加行就复制这一段，把行4 改成行5）──────────
+行4条:
+  type: texture
+  x: "(w-760)/2+22"
+  y: "(h-414)/2+236"
+  width: 716
+  height: 48
+  texture: "商城/行条.png"
+  visible: true
+行4图标格:
+  type: texture
+  x: "(w-760)/2+34"
+  y: "(h-414)/2+243"
+  width: 34
+  height: 34
+  texture: "商城/格_34.png"
+  visible: true
+行4图标:
+  type: slot
+  x: "(w-760)/2+35"
+  y: "(h-414)/2+244"
+  width: 32
+  height: 32
+  identifier: "qmshop_slot"
+  visible: true
+行4名:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+250"
+  texts: ["§f商品"]
+  scale: 1
+  visible: true
+行4价:
+  type: label
+  x: "(w-760)/2+78"
+  y: "(h-414)/2+263"
+  texts: ["§7需要 3 金币"]
+  scale: 1
+  visible: true
+行4需求框1:
+  type: texture
+  x: "(w-760)/2+460"
+  y: "(h-414)/2+246"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行4需求1:
+  type: slot
+  x: "(w-760)/2+461"
+  y: "(h-414)/2+247"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行4需求框2:
+  type: texture
+  x: "(w-760)/2+496"
+  y: "(h-414)/2+246"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行4需求2:
+  type: slot
+  x: "(w-760)/2+497"
+  y: "(h-414)/2+247"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行4需求框3:
+  type: texture
+  x: "(w-760)/2+532"
+  y: "(h-414)/2+246"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行4需求3:
+  type: slot
+  x: "(w-760)/2+533"
+  y: "(h-414)/2+247"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行4需求框4:
+  type: texture
+  x: "(w-760)/2+568"
+  y: "(h-414)/2+246"
+  width: 28
+  height: 28
+  texture: "商城/格_28.png"
+  visible: true
+行4需求4:
+  type: slot
+  x: "(w-760)/2+569"
+  y: "(h-414)/2+247"
+  width: 26
+  height: 26
+  identifier: "qmshop_slot"
+  visible: true
+行4选择框:
+  type: texture
+  x: "(w-760)/2+610"
+  y: "(h-414)/2+243"
+  width: 116
+  height: 34
+  texture: "商城/按钮_选择.png"
+  textureHovered: "商城/按钮_选择_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'select', '{index}')"
+  visible: true
+行4选择字:
+  type: label
+  x: "(w-760)/2+668"
+  y: "(h-414)/2+256"
+  texts: ["§e选择"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 底部面板（全部以「面板」开头，没选商品时整组隐藏）──────
+面板框:
+  type: texture
+  x: "(w-760)/2+58"
+  y: "(h-414)/2+300"
+  width: 644
+  height: 92
+  texture: "商城/购买框.png"
+  visible: true
+面板数量字:
+  type: label
+  x: "(w-760)/2+84"
+  y: "(h-414)/2+328"
+  texts: ["§e数量"]
+  scale: 1
+  visible: true
+面板减10:
+  type: texture
+  x: "(w-760)/2+140"
+  y: "(h-414)/2+321"
+  width: 26
+  height: 26
+  texture: "商城/箭头_左2.png"
+  textureHovered: "商城/箭头_左2_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'qty', '-{big}')"
+  visible: true
+面板减1:
+  type: texture
+  x: "(w-760)/2+172"
+  y: "(h-414)/2+321"
+  width: 26
+  height: 26
+  texture: "商城/箭头_左.png"
+  textureHovered: "商城/箭头_左_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'qty', '-{step}')"
+  visible: true
+面板输入框:
+  type: texture
+  x: "(w-760)/2+204"
+  y: "(h-414)/2+319"
+  width: 104
+  height: 30
+  texture: "商城/输入框.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'hint')"
+  visible: true
+面板数量:
+  type: label
+  x: "(w-760)/2+256"
+  y: "(h-414)/2+326"
+  texts: ["1"]
+  scale: 2
+  center: true
+  visible: true
+面板加1:
+  type: texture
+  x: "(w-760)/2+316"
+  y: "(h-414)/2+321"
+  width: 26
+  height: 26
+  texture: "商城/箭头_右.png"
+  textureHovered: "商城/箭头_右_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'qty', '{step}')"
+  visible: true
+面板加10:
+  type: texture
+  x: "(w-760)/2+348"
+  y: "(h-414)/2+321"
+  width: 26
+  height: 26
+  texture: "商城/箭头_右2.png"
+  textureHovered: "商城/箭头_右2_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'qty', '{big}')"
+  visible: true
+面板合计:
+  type: label
+  x: "(w-760)/2+142"
+  y: "(h-414)/2+362"
+  texts: ["§71 × 商品   §7合计: §61 金币"]
+  scale: 1
+  visible: true
+面板购买:
+  type: texture
+  x: "(w-760)/2+560"
+  y: "(h-414)/2+316"
+  width: 120
+  height: 36
+  texture: "商城/按钮_购买.png"
+  textureHovered: "商城/按钮_购买_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'buy')"
+  visible: true
+面板购买字:
+  type: label
+  x: "(w-760)/2+620"
+  y: "(h-414)/2+330"
+  texts: ["§e购买"]
+  scale: 1
+  center: true
+  visible: true
+面板取消:
+  type: texture
+  x: "(w-760)/2+452"
+  y: "(h-414)/2+316"
+  width: 96
+  height: 36
+  texture: "商城/按钮_取消.png"
+  textureHovered: "商城/按钮_取消_悬停.png"
+  actions:
+    click: "方法.发包('QingMingShop', 'cancel')"
+  visible: true
+面板取消字:
+  type: label
+  x: "(w-760)/2+500"
+  y: "(h-414)/2+330"
+  texts: ["§7取消"]
+  scale: 1
+  center: true
+  visible: true
+
+# ── 没选商品时的提示文字 ───────────────────────────────
+提示:
+  type: label
+  x: "(w-760)/2+380"
+  y: "(h-414)/2+342"
+  texts: ["§7点击右侧「选择」，在这里设置购买数量"]
+  scale: 1
+  center: true
+  visible: true

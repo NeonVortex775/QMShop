@@ -1,0 +1,24 @@
+name: QingMingShop
+main: com.qingming.shop.ShopPlugin
+version: 1.0.0
+author: QingMing
+description: 青冥商城 —— 龙核动态界面商城（实物 / 点券 / 金币）
+depend: [DragonCore]
+softdepend: [Vault, Essentials, PlayerPoints, NeigeItems, PlaceholderAPI]
+
+commands:
+  shop:
+    description: 打开商城
+    usage: /shop [商店ID] | /shop open <玩家> <商店ID> | /shop list | /shop reload
+    aliases: [qmsshop, qmshop]
+
+permissions:
+  qingmingshop.use:
+    description: 使用商城
+    default: true
+  qingmingshop.open:
+    description: 给其他玩家打开商城
+    default: op
+  qingmingshop.admin:
+    description: 重载商城配置
+    default: op
