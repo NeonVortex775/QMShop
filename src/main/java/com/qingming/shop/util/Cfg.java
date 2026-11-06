@@ -42,14 +42,46 @@ public final class Cfg {
 
     public static int num(Object node, String key, int def) {
         Object v = get(node, key);
+        double d = Double.NaN;
         if (v instanceof Number) {
-            return ((Number) v).intValue();
+            d = ((Number) v).doubleValue();
+        } else if (v != null) {
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) {
+                try {
+                    d = Double.parseDouble(s);
+                } catch (NumberFormatException ignored) {
+
+                }
+            }
+        }
+        if (Double.isNaN(d)) {
+            return def;
+        }
+
+        long r = Math.round(d);
+        if (r > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (r < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) r;
+    }
+
+    public static double dbl(Object node, String key, double def) {
+        Object v = get(node, key);
+        if (v instanceof Number) {
+            return ((Number) v).doubleValue();
         }
         if (v != null) {
-            try {
-                return Integer.parseInt(String.valueOf(v).trim());
-            } catch (NumberFormatException ignored) {
+            String s = String.valueOf(v).trim();
+            if (!s.isEmpty()) {
+                try {
+                    return Double.parseDouble(s);
+                } catch (NumberFormatException ignored) {
 
+                }
             }
         }
         return def;

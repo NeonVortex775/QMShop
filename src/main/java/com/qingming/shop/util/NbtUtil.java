@@ -14,10 +14,15 @@ public final class NbtUtil {
     private static Logger log;
     private static boolean ready = false;
     private static boolean broken = false;
+    private static int failures = 0;
 
     private static Constructor<?> mItemCtor;
-    private static Method mGetCompound;
+    private static Method mHasTag;
+    private static Method mGetType;
     private static Method mGetItem;
+    private static Method mSetString;
+    private static Method mSetInt;
+    private static Method mSetLong;
 
     private NbtUtil() {
     }
@@ -36,8 +41,12 @@ public final class NbtUtil {
         try {
             Class<?> c = Class.forName("de.tr7zw.nbtapi.NBTItem");
             mItemCtor = c.getConstructor(ItemStack.class);
-            mGetCompound = c.getMethod("getCompound");
+            mHasTag = c.getMethod("hasTag", String.class);
+            mGetType = c.getMethod("getType", String.class);
             mGetItem = c.getMethod("getItem");
+            mSetString = c.getMethod("setString", String.class, String.class);
+            mSetInt = method(c, "setInteger", String.class, Integer.class, int.class);
+            mSetLong = method(c, "setLong", String.class, Long.class, long.class);
             ready = true;
             return true;
         } catch (Throwable t) {
@@ -49,78 +58,102 @@ public final class NbtUtil {
         }
     }
 
-    public static boolean available() {
-        return prepare();
+    private static Method method(Class<?> c, String name, Class<?> a, Class<?> boxed, Class<?> primitive) {
+        try {
+            return c.getMethod(name, a, boxed);
+        } catch (NoSuchMethodException ignored) {
+            try {
+                return c.getMethod(name, a, primitive);
+            } catch (NoSuchMethodException e) {
+                return null;
+            }
+        }
+    }
+
+    private static Object newItem(ItemStack item) throws Exception {
+        return mItemCtor.newInstance(item);
     }
 
     public static String read(ItemStack item, String path) {
-        if (item == null || path == null || !prepare()) {
+        if (item == null || path == null || path.trim().isEmpty() || !prepare()) {
             return null;
         }
         try {
-            Object nbtItem = mItemCtor.newInstance(item);
-            Object compound = mGetCompound.invoke(nbtItem);
-            if (compound == null) {
+            Object nbt = newItem(item);
+            Object has = mHasTag.invoke(nbt, path);
+            if (!(has instanceof Boolean) || !((Boolean) has)) {
                 return null;
             }
-            String[] segs = path.split("\\.");
-            Object cur = compound;
-            for (int i = 0; i < segs.length; i++) {
-                String seg = segs[i];
-                Class<?> cc = cur.getClass();
-                if (!((Boolean) cc.getMethod("hasKey", String.class).invoke(cur, seg))) {
-                    return null;
-                }
-                if (i == segs.length - 1) {
-                    return value(cc, cur, seg);
-                }
-                cur = cc.getMethod("getCompound", String.class).invoke(cur, seg);
-                if (cur == null) {
-                    return null;
-                }
-            }
-            return null;
+            Object type = mGetType.invoke(nbt, path);
+            int id = tagId(type);
+            return readByType(nbt, path, id);
         } catch (Throwable t) {
-            broken = true;
-            if (log != null) {
-                log.log(Level.WARNING, "[NBT] 读取失败，已停用 NBT 支持", t);
-            }
+            warn("读取失败: " + path, t);
             return null;
         }
     }
 
-    private static String value(Class<?> cc, Object compound, String key) throws Exception {
-        Object type = cc.getMethod("getType", String.class).invoke(compound, key);
-        String tn = type == null ? "" : type.toString().toUpperCase();
-        if (tn.contains("STRING")) {
-            return (String) cc.getMethod("getString", String.class).invoke(compound, key);
+    private static int tagId(Object type) {
+        if (type == null) {
+            return -1;
         }
-        if (tn.contains("INT")) {
-            return String.valueOf(cc.getMethod("getInteger", String.class).invoke(compound, key));
+        try {
+            Object id = type.getClass().getMethod("getId").invoke(type);
+            if (id instanceof Number) {
+                return ((Number) id).intValue();
+            }
+        } catch (Throwable ignored) {
+
         }
-        if (tn.contains("LONG")) {
-            return String.valueOf(cc.getMethod("getLong", String.class).invoke(compound, key));
+        String name = String.valueOf(type).toUpperCase();
+        if (name.contains("STRING")) {
+            return 8;
         }
-        if (tn.contains("DOUBLE")) {
-            return String.valueOf(cc.getMethod("getDouble", String.class).invoke(compound, key));
+        if (name.contains("INT")) {
+            return 3;
         }
-        if (tn.contains("FLOAT")) {
-            return String.valueOf(cc.getMethod("getFloat", String.class).invoke(compound, key));
+        if (name.contains("LONG")) {
+            return 4;
         }
-        if (tn.contains("SHORT")) {
-            return String.valueOf(cc.getMethod("getShort", String.class).invoke(compound, key));
+        if (name.contains("DOUBLE")) {
+            return 6;
         }
-        if (tn.contains("BYTE")) {
-            return String.valueOf(cc.getMethod("getByte", String.class).invoke(compound, key));
+        if (name.contains("FLOAT")) {
+            return 5;
         }
-        if (tn.contains("BOOLEAN")) {
-            return String.valueOf(cc.getMethod("getBoolean", String.class).invoke(compound, key));
+        if (name.contains("SHORT")) {
+            return 2;
         }
-        if (tn.contains("UUID")) {
-            return String.valueOf(cc.getMethod("getUUID", String.class).invoke(compound, key));
+        if (name.contains("BYTE")) {
+            return 1;
         }
-        Object raw = cc.getMethod("get", String.class).invoke(compound, key);
-        return raw == null ? null : String.valueOf(raw);
+        return -1;
+    }
+
+    private static String readByType(Object nbt, String path, int id) throws Exception {
+        switch (id) {
+            case 8:
+                return get(nbt, "getString", path);
+            case 3:
+                return get(nbt, "getInteger", path);
+            case 4:
+                return get(nbt, "getLong", path);
+            case 6:
+                return get(nbt, "getDouble", path);
+            case 5:
+                return get(nbt, "getFloat", path);
+            case 2:
+                return get(nbt, "getShort", path);
+            case 1:
+                return get(nbt, "getByte", path);
+            default:
+                return null;
+        }
+    }
+
+    private static String get(Object nbt, String method, String path) throws Exception {
+        Object v = nbt.getClass().getMethod(method, String.class).invoke(nbt, path);
+        return v == null ? null : String.valueOf(v);
     }
 
     public static ItemStack apply(ItemStack item, Map<String, String> values) {
@@ -128,39 +161,38 @@ public final class NbtUtil {
             return item;
         }
         try {
-            Object nbtItem = mItemCtor.newInstance(item);
-            Object root = mGetCompound.invoke(nbtItem);
-            Class<?> cc = root.getClass();
+            Object nbt = newItem(item);
             for (Map.Entry<String, String> e : values.entrySet()) {
                 String key = e.getKey();
-                String val = e.getValue() == null ? "" : e.getValue();
-                Object target = root;
-                int dot = key.lastIndexOf('.');
-                if (dot > 0) {
-                    target = cc.getMethod("getOrCreateCompound", String.class).invoke(root, key.substring(0, dot));
-                    key = key.substring(dot + 1);
-                }
-                if (target == null) {
+                if (key == null || key.trim().isEmpty()) {
                     continue;
                 }
-                if (val.matches("-?\\d{1,9}")) {
-                    target.getClass()
-                            .getMethod("setInteger", String.class, Integer.class)
-                            .invoke(target, key, Integer.valueOf(val));
-                } else {
-                    target.getClass()
-                            .getMethod("setString", String.class, String.class)
-                            .invoke(target, key, val);
+                String val = e.getValue() == null ? "" : e.getValue();
+                String k = key.trim();
+                if (val.matches("-?\\d{1,9}") && mSetInt != null) {
+                    mSetInt.invoke(nbt, k, Integer.valueOf(val));
+                } else if (val.matches("-?\\d{10,18}") && mSetLong != null) {
+                    mSetLong.invoke(nbt, k, Long.valueOf(val));
+                } else if (mSetString != null) {
+                    mSetString.invoke(nbt, k, val);
                 }
             }
-            Object result = mGetItem.invoke(nbtItem);
+            Object result = mGetItem.invoke(nbt);
             return result instanceof ItemStack ? (ItemStack) result : item;
         } catch (Throwable t) {
-            broken = true;
-            if (log != null) {
-                log.log(Level.WARNING, "[NBT] 写入失败，已停用 NBT 支持", t);
-            }
+            warn("写入失败", t);
             return item;
         }
+    }
+
+    private static void warn(String what, Throwable t) {
+        failures++;
+        if (log != null && failures <= 3) {
+            log.log(Level.WARNING, "[NBT] " + what + "（第 " + failures + " 次）", t);
+        }
+    }
+
+    public static boolean available() {
+        return prepare();
     }
 }

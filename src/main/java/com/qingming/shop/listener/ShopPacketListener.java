@@ -45,13 +45,16 @@ public final class ShopPacketListener implements Listener {
             int index = num(data, 1, -1);
             if (index >= 0 && index < s.shop().getProducts().size()) {
                 s.select(index);
+
+                plugin.clampQty(s);
                 plugin.sound(p, "click");
             }
         } else if ("qty".equals(action)) {
+            int max = plugin.maxQty(s.selected());
             if (data.size() >= 3 && "set".equalsIgnoreCase(data.get(1))) {
-                s.qty(num(data, 2, s.qty()), plugin.minQty(), plugin.maxQty());
+                s.qty(num(data, 2, s.qty()), plugin.minQty(), max);
             } else {
-                s.qty(s.qty() + num(data, 1, 0), plugin.minQty(), plugin.maxQty());
+                s.qty(s.qty() + num(data, 1, 0), plugin.minQty(), max);
             }
             plugin.sound(p, "click");
         } else if ("page".equals(action)) {
@@ -66,6 +69,10 @@ public final class ShopPacketListener implements Listener {
             return;
         } else if ("open".equals(action)) {
             String id = data.size() > 1 ? data.get(1) : "";
+            if (!p.hasPermission("qingmingshop.use") && !p.isOp()) {
+                p.sendMessage(plugin.msg("no-permission"));
+                return;
+            }
             Shop shop = plugin.shops().get(id);
             if (shop != null) {
                 plugin.open(p, shop);

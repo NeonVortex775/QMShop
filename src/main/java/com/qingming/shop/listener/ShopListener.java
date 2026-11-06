@@ -18,11 +18,11 @@ public final class ShopListener implements Listener {
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onQuit(PlayerQuitEvent e) {
-        plugin.sessions().remove(e.getPlayer().getUniqueId());
+        plugin.forget(e.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.MONITOR)
     public void onKick(PlayerKickEvent e) {
-        plugin.sessions().remove(e.getPlayer().getUniqueId());
+        plugin.forget(e.getPlayer());
     }
 }

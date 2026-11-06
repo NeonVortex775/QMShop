@@ -1,6 +1,7 @@
 package com.qingming.shop.config;
 
 import com.qingming.shop.util.Cfg;
+import com.qingming.shop.util.Log;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
@@ -25,17 +26,28 @@ public final class Product {
         if (p.display == null) {
             return null;
         }
-        p.amount = Math.max(1, Cfg.num(sec, "amount", 1));
+
+        p.amount = Math.max(1, Math.min(64, Cfg.num(sec, "amount", 1)));
         p.permission = Cfg.str(sec, "permission", null);
 
         List<?> list = Cfg.list(sec, "price");
+        int declared = 0;
         if (list != null) {
             for (Object o : list) {
+                if (o == null || !Cfg.isNode(o)) {
+                    continue;
+                }
+                declared++;
                 Price pr = Price.parse(o);
                 if (pr != null) {
                     p.price.add(pr);
                 }
             }
+        }
+        if (declared > 0 && p.price.isEmpty()) {
+            Log.warn("[青冥商城] 商品「" + p.display.label()
+                    + "」的 price 一条都没解析成功（type 写错？），该商品已被跳过");
+            return null;
         }
         p.commands.addAll(Cfg.strList(sec, "commands"));
         return p;
@@ -89,7 +101,7 @@ public final class Product {
                     sb.append("§d").append(p.total(qty)).append(" §f点券");
                     break;
                 default:
-                    sb.append("§6").append(p.total(qty)).append(" §f金币");
+                    sb.append("§6").append(Price.moneyText(p.moneyTotal(qty))).append(" §f金币");
                     break;
             }
         }

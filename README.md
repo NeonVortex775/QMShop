@@ -73,7 +73,20 @@ items:
 
 `display` takes `material` (with optional `:data`), `ni`, `name`, `lore`, `glow`, `nbt`. A price line
 with `type: item` takes the same block plus `amount`; `name` and `lore` on a requirement are match
-conditions, not labels, so leave them out for plain materials.
+conditions, not labels, so leave them out for plain materials. `data: "*"` (or `WOOL:*`) accepts any
+data value, which is the way to ask for "any colour of this".
+
+`type` also accepts `material` for items, `point` for points and `coin`, `coins` or `vault` for money.
+A line with an unknown type is dropped with a console warning instead of silently becoming money, and
+a product whose price lines all failed to parse is skipped at load.
+
+Money is a decimal. `economy.money-decimals` decides how many places are kept in the price line and in
+the balance check, so `500.5` is a valid price.
+
+A requirement that only names a `material` matches the plain item: renamed copies and anything with
+lore do not count, so players cannot hand in a customised piece of gear in place of the raw material.
+On a server where every item carries lore from an attribute plugin that check gets in the way, and
+`match.require-plain-item: false` turns it off.
 
 Screen height is derived, not configured:
 
@@ -82,6 +95,18 @@ height = margin*2 + title-height + rows*row-height + (rows-1)*row-gap + 16 + pan
 ```
 
 Products beyond `rows` are paged; the arrows appear on their own.
+
+## Buying
+
+One purchase is capped at a single stack: 64 items in total. A product that gives 16 per purchase can
+be bought 4 times, one that gives 1 can be bought 64 times. `quantity.max` in the config is clamped to
+that as well, and both the arrows and the quantity box stop at the limit instead of letting the charge
+fail later.
+
+The charge itself is all or nothing. Item requirements are counted first, then points and money are
+taken, then the items are removed; if any step fails, everything already taken is given back and the
+player is told which requirement was missing. A product without a usable price, or one whose icon
+cannot be built (`ni` typo, NeigeItems missing), is refused before any money moves.
 
 ## Custom screen
 
@@ -138,7 +163,8 @@ rows makes the next page spill into the visible area.
 | `gui.texture-prefix` | texture folder inside the resource pack |
 | `icons.points` / `icons.money` | what the currency requirements look like |
 | `economy.points-name` / `money-name` / `money-decimals` | names shown in messages |
-| `quantity.min` / `max` / `step` / `big-step` / `default` | quantity selector |
+| `quantity.min` / `max` / `step` / `big-step` / `default` | quantity selector, `max` cannot exceed 64 |
+| `match.require-plain-item` | plain material requirements only match unnamed, lore-free items |
 | `messages.*` | every string the plugin sends |
 | `sounds.*` | 1.12 sound names, empty disables |
 

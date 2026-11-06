@@ -52,7 +52,7 @@ public final class CustomGui {
         int H = tpl.height() > 0 ? tpl.height() : L.height();
         int rows = tpl.rows() > 0 ? tpl.rows() : L.rows;
 
-        int perPage = L.rows;
+        int perPage = s.perPage();
         if (rows > perPage) {
             plugin.getLogger().warning("gui/" + tpl.file().getName() + " 画了 " + rows
                     + " 行，但商店 " + shop.getId() + " 每页只有 " + perPage + " 个商品，多出的行会隐藏");
@@ -65,7 +65,7 @@ public final class CustomGui {
         ph.put("{shop}", shop.getId());
         ph.put("{title}", title);
         ph.put("{page}", String.valueOf(s.page() + 1));
-        ph.put("{pages}", String.valueOf(shop.pageCount()));
+        ph.put("{pages}", String.valueOf(s.pageCount()));
         ph.put("{qty}", String.valueOf(s.qty()));
         ph.put("{rows}", String.valueOf(rows));
         ph.put("{step}", String.valueOf(plugin.step()));
@@ -160,11 +160,11 @@ public final class CustomGui {
             if ("标题".equals(key)) {
                 sec.set("texts", Arrays.asList(title));
             } else if ("页码".equals(key)) {
-                sec.set("texts", Arrays.asList("§7" + (s.page() + 1) + " / " + shop.pageCount()));
+                sec.set("texts", Arrays.asList("§7" + (s.page() + 1) + " / " + s.pageCount()));
             } else if ("上一页".equals(key)) {
                 sec.set("visible", s.page() > 0);
             } else if ("下一页".equals(key)) {
-                sec.set("visible", s.page() < shop.pageCount() - 1);
+                sec.set("visible", s.page() < s.pageCount() - 1);
             } else if ("面板数量".equals(key)) {
 
                 sec.set("texts", Arrays.asList("§e" + s.qty()));
@@ -195,7 +195,7 @@ public final class CustomGui {
         }
         if (plugin.getConfig().getBoolean("gui.debug", false)) {
             plugin.getLogger().info("下发界面 gui/" + tpl.file().getName() + " -> Gui/"
-                    + tpl.guiName() + ".yml（第 " + (s.page() + 1) + "/" + shop.pageCount()
+                    + tpl.guiName() + ".yml（第 " + (s.page() + 1) + "/" + s.pageCount()
                     + " 页，" + rows + " 行，" + items.size() + " 个槽位物品）");
         }
         return true;

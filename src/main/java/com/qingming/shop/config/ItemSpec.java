@@ -18,6 +18,7 @@ import java.util.Map;
 public final class ItemSpec {
 
     private Material material;
+
     private short data;
     private String name;
     private List<String> lore = new ArrayList<String>();
@@ -25,6 +26,12 @@ public final class ItemSpec {
     private String ni;
     private boolean glow;
     private int amount = 1;
+
+    private static boolean strictPlain = true;
+
+    public static void strictPlainMatch(boolean on) {
+        strictPlain = on;
+    }
 
     public static ItemSpec parse(Object sec) {
         if (!Cfg.isNode(sec)) {
@@ -35,22 +42,31 @@ public final class ItemSpec {
         s.name = Cfg.str(sec, "name", null);
         s.lore = Cfg.strList(sec, "lore");
         s.glow = Cfg.bool(sec, "glow", false);
-        s.amount = Math.max(1, Cfg.num(sec, "amount", 1));
+        s.amount = Math.max(1, Math.min(64, Cfg.num(sec, "amount", 1)));
 
         String raw = Cfg.str(sec, "material", null);
         if (raw == null || raw.trim().isEmpty()) {
             raw = Cfg.str(sec, "type", "");
+        }
+
+        String dataRaw = Cfg.str(sec, "data", null);
+        if (dataRaw != null && "*".equals(dataRaw.trim())) {
+            s.data = -1;
         }
         if (raw != null && !raw.trim().isEmpty()) {
             String m = raw.trim().toUpperCase();
             if (m.contains(":")) {
                 String[] sp = m.split(":", 2);
                 m = sp[0];
-                try {
-                    s.data = Short.parseShort(sp[1]);
-                } catch (NumberFormatException ignored) {
+                if ("*".equals(sp[1].trim())) {
+                    s.data = -1;
+                } else {
+                    try {
+                        s.data = Short.parseShort(sp[1].trim());
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
-            } else {
+            } else if (s.data != -1) {
                 s.data = (short) Cfg.num(sec, "data", 0);
             }
             s.material = Material.matchMaterial(m);
@@ -119,17 +135,26 @@ public final class ItemSpec {
         if (Items.empty(item)) {
             return false;
         }
-        if (ni != null && !ni.trim().isEmpty()) {
+        boolean niOnly = ni != null && !ni.trim().isEmpty();
+        if (niOnly) {
             String id = NiHook.idOf(item);
-            if (id != null) {
-                return Text.wildcard(ni.trim(), id);
+            if (id == null || !Text.wildcard(ni.trim(), id)) {
+                return false;
             }
-        }
-        if (material != null) {
+        } else if (material != null) {
             if (item.getType() != material) {
                 return false;
             }
-            if (data != 0 && item.getDurability() != data) {
+            if (data >= 0 && item.getDurability() != data) {
+                return false;
+            }
+        }
+        boolean plainSpec = !niOnly && material != null
+                && (name == null || name.trim().isEmpty())
+                && lore.isEmpty() && nbt.isEmpty();
+        if (strictPlain && plainSpec) {
+            org.bukkit.inventory.meta.ItemMeta meta = item.getItemMeta();
+            if (meta != null && (meta.hasDisplayName() || meta.hasLore())) {
                 return false;
             }
         }

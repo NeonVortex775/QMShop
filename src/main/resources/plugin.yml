@@ -1,6 +1,6 @@
 name: QingMingShop
 main: com.qingming.shop.ShopPlugin
-version: 1.0.0
+version: 1.0.1
 author: QingMing
 description: 青冥商城 —— 龙核动态界面商城（实物 / 点券 / 金币）
 depend: [DragonCore]

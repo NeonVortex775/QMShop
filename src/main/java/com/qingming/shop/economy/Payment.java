@@ -15,6 +15,7 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.RegisteredServiceProvider;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 
@@ -33,6 +34,19 @@ public final class Payment {
     public void setup() {
         vault = null;
         points = null;
+        try {
+            int d = plugin.getConfig().getInt("economy.money-decimals", 2);
+            StringBuilder pat = new StringBuilder("0");
+            if (d > 0) {
+                pat.append('.');
+                for (int i = 0; i < Math.min(6, d); i++) {
+                    pat.append('#');
+                }
+            }
+            moneyFmt = new DecimalFormat(pat.toString());
+        } catch (Throwable ignored) {
+            moneyFmt = new DecimalFormat("0.##");
+        }
         if (Bukkit.getPluginManager().getPlugin("Vault") != null) {
             try {
                 RegisteredServiceProvider<Economy> rsp =
@@ -117,7 +131,7 @@ public final class Payment {
                     if (vault == null) {
                         return plugin.msg("no-economy");
                     }
-                    double need = price.total(qty);
+                    double need = price.moneyTotal(qty);
                     double have = balance(p);
                     if (have + 1.0E-6 < need) {
                         return plugin.msg("not-enough-money")
@@ -133,31 +147,71 @@ public final class Payment {
     }
 
     public boolean charge(Player p, Product product, int qty) {
-        for (Price price : product.getPrice()) {
+        List<Price> prices = product.getPrice();
+        List<Price> paid = new ArrayList<Price>();
+
+        for (Price price : prices) {
+            int need = price.total(qty);
+            if (price.getKind() == Price.Kind.POINTS) {
+                if (points == null || !points.take(p.getUniqueId(), need)) {
+                    refund(paid, p, qty);
+                    return false;
+                }
+                paid.add(price);
+            } else if (price.getKind() == Price.Kind.MONEY) {
+                if (vault == null) {
+                    refund(paid, p, qty);
+                    return false;
+                }
+                double money = price.moneyTotal(qty);
+                if (!vault.withdrawPlayer(p, money).transactionSuccess()) {
+                    refund(paid, p, qty);
+                    return false;
+                }
+                paid.add(price);
+            }
+        }
+
+        for (Price price : prices) {
+            if (price.getKind() != Price.Kind.ITEM) {
+                continue;
+            }
+            int need = price.total(qty);
+            if (count(p.getInventory(), price.getItem()) < need) {
+                refund(paid, p, qty);
+                return false;
+            }
+        }
+        for (Price price : prices) {
             if (price.getKind() != Price.Kind.ITEM) {
                 continue;
             }
             int need = price.total(qty);
             if (removeItems(p.getInventory(), price.getItem(), need) < need) {
+                refund(paid, p, qty);
                 return false;
             }
         }
-        for (Price price : product.getPrice()) {
-            int need = price.total(qty);
-            if (price.getKind() == Price.Kind.POINTS) {
-                if (points == null || !points.take(p.getUniqueId(), need)) {
-                    return false;
+        return true;
+    }
+
+    private void refund(List<Price> paid, Player p, int qty) {
+        for (Price price : paid) {
+            try {
+                if (price.getKind() == Price.Kind.POINTS) {
+                    if (points != null) {
+                        points.give(p.getUniqueId(), price.total(qty));
+                    }
+                } else if (price.getKind() == Price.Kind.MONEY) {
+                    if (vault != null) {
+                        vault.depositPlayer(p, price.moneyTotal(qty));
+                    }
                 }
-            } else if (price.getKind() == Price.Kind.MONEY) {
-                if (vault == null) {
-                    return false;
-                }
-                if (!vault.withdrawPlayer(p, need).transactionSuccess()) {
-                    return false;
-                }
+            } catch (Throwable t) {
+                plugin.getLogger().log(Level.WARNING, "退款失败（玩家 " + p.getName() + "）", t);
             }
         }
-        return true;
+        paid.clear();
     }
 
     public int count(PlayerInventory inv, ItemSpec spec) {

@@ -38,6 +38,8 @@ public final class ShopScreen extends EasyScreen {
 
     private boolean keepSession;
 
+    private long lastQtyWarn;
+
     public ShopScreen(ShopPlugin plugin, Player player, ShopSession session) {
         super(plugin.texture("边框_中.png"), session.shop().getLayout().width,
                 session.shop().getLayout().height());
@@ -205,7 +207,7 @@ public final class ShopScreen extends EasyScreen {
         image("标题牌.png", x, 12, Layout.TITLE_W, Layout.TITLE_H);
         label(shop.getTitle(), L.width / 2, 12 + Layout.TITLE_H / 2 - 8, 2, true);
 
-        if (shop.pageCount() > 1) {
+        if (session.pageCount() > 1) {
             int y = L.pageButtonY();
             if (session.page() > 0) {
                 button("箭头_左.png", "箭头_左_悬停.png", L.pageLeftX(), y, 26, 26, new Act() {
@@ -216,7 +218,7 @@ public final class ShopScreen extends EasyScreen {
                     }
                 });
             }
-            if (session.page() < shop.pageCount() - 1) {
+            if (session.page() < session.pageCount() - 1) {
                 button("箭头_右.png", "箭头_右_悬停.png", L.pageRightX(), y, 26, 26, new Act() {
                     public void run(Player p) {
                         session.page(session.page() + 1);
@@ -225,13 +227,13 @@ public final class ShopScreen extends EasyScreen {
                     }
                 });
             }
-            label("§7" + (session.page() + 1) + " / " + shop.pageCount(),
+            label("§7" + (session.page() + 1) + " / " + session.pageCount(),
                     L.pageRightX() + 13, y + 26 + 2, 1, true);
         }
     }
 
     private void rows() {
-        int per = L.rows;
+        int per = session.perPage();
         int first = session.firstIndexOfPage();
         for (int i = 0; i < per; i++) {
             final int index = first + i;
@@ -261,6 +263,8 @@ public final class ShopScreen extends EasyScreen {
                     L.selectX(), L.selectY(i), Layout.SEL_W, Layout.SEL_H, new Act() {
                         public void run(Player p) {
                             session.select(index);
+
+                            plugin.clampQty(session);
                             plugin.sound(p, "click");
                             refresh();
                         }
@@ -310,7 +314,12 @@ public final class ShopScreen extends EasyScreen {
                 }
                 try {
                     int v = Integer.parseInt(digits);
-                    session.qty(v, plugin.minQty(), plugin.maxQty());
+                    int max = plugin.maxQty(product);
+                    if (v > max) {
+
+                        warnQtyMax(max);
+                    }
+                    session.qty(v, plugin.minQty(), max);
                 } catch (NumberFormatException ignored) {
                 }
             }
@@ -339,11 +348,19 @@ public final class ShopScreen extends EasyScreen {
         buttonText(L.cancelX(), L.buttonY(), Layout.BTN_CANCEL_W, Layout.BTN_H, "§7取消");
     }
 
-    private void arrowButton(String tex, int x, final int delta) {
-        button(tex, tex.replace(".png", "_悬停.png"), x, L.arrowY(), Layout.ARROW, Layout.ARROW,
+    private void warnQtyMax(int max) {
+        long now = System.currentTimeMillis();
+        if (now - lastQtyWarn < 1000L) {
+            return;
+        }
+        lastQtyWarn = now;
+        player.sendMessage(plugin.msg("qty-max").replace("%max%", String.valueOf(max)));
+    }
+
+    private void arrowButton(String tex, int x, final int delta) {        button(tex, tex.replace(".png", "_悬停.png"), x, L.arrowY(), Layout.ARROW, Layout.ARROW,
                 new Act() {
                     public void run(Player p) {
-                        session.qty(session.qty() + delta, plugin.minQty(), plugin.maxQty());
+                        session.qty(session.qty() + delta, plugin.minQty(), plugin.maxQty(session.selected()));
                         plugin.sound(p, "click");
                         refresh();
                     }
@@ -352,7 +369,7 @@ public final class ShopScreen extends EasyScreen {
 
     public String debug() {
         return shop.getId() + " " + L.width + "x" + L.height()
-                + " rows=" + L.rows + " 第" + (session.page() + 1) + "/" + shop.pageCount() + "页";
+                 + " rows=" + session.perPage() + " 第" + (session.page() + 1) + "/" + session.pageCount() + "页";
     }
 
     @SuppressWarnings("unused")

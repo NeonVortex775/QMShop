@@ -2,6 +2,7 @@ package com.qingming.shop;
 
 import com.qingming.shop.command.ShopCommand;
 import com.qingming.shop.config.ItemSpec;
+import com.qingming.shop.config.Price;
 import com.qingming.shop.config.Product;
 import com.qingming.shop.config.Shop;
 import com.qingming.shop.config.ShopManager;
@@ -14,6 +15,7 @@ import com.qingming.shop.gui.ShopSession;
 import com.qingming.shop.listener.ShopListener;
 import com.qingming.shop.listener.ShopPacketListener;
 import com.qingming.shop.util.Items;
+import com.qingming.shop.util.Log;
 import com.qingming.shop.util.NbtUtil;
 import com.qingming.shop.util.NiHook;
 import com.qingming.shop.util.Text;
@@ -30,6 +32,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Plugin entry point: shops, economy, GUI templates, sessions. */
 public final class ShopPlugin extends JavaPlugin {
 
+    public static final int MAX_ITEMS_PER_BUY = 64;
+
     private ShopManager shops;
     private Payment payment;
     private ShopCommand command;
@@ -45,9 +49,12 @@ public final class ShopPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        Log.init(getLogger());
         NbtUtil.init(getLogger());
         NiHook.init(getLogger());
         saveDefaultConfig();
+        ItemSpec.strictPlainMatch(getConfig().getBoolean("match.require-plain-item", true));
+        Price.moneyDecimals(getConfig().getInt("economy.money-decimals", 2));
 
         shops = new ShopManager(this);
         shops.loadAll();
@@ -125,11 +132,26 @@ public final class ShopPlugin extends JavaPlugin {
     }
 
     public int minQty() {
-        return Math.max(1, getConfig().getInt("quantity.min", 1));
+
+        return Math.max(1, Math.min(MAX_ITEMS_PER_BUY, getConfig().getInt("quantity.min", 1)));
     }
 
     public int maxQty() {
-        return Math.max(minQty(), getConfig().getInt("quantity.max", 9999));
+        int cfg = getConfig().getInt("quantity.max", MAX_ITEMS_PER_BUY);
+        return Math.max(minQty(), Math.min(MAX_ITEMS_PER_BUY, cfg));
+    }
+
+    public int maxQty(Product product) {
+        int amt = product == null ? 1 : Math.max(1, product.getAmount());
+        int byStack = Math.max(1, MAX_ITEMS_PER_BUY / amt);
+        return Math.max(minQty(), Math.min(maxQty(), byStack));
+    }
+
+    public void clampQty(ShopSession session) {
+        if (session == null) {
+            return;
+        }
+        session.qty(session.qty(), minQty(), maxQty(session.selected()));
     }
 
     public void sound(Player p, String key) {
@@ -158,12 +180,18 @@ public final class ShopPlugin extends JavaPlugin {
     public void reload() {
         reloadConfig();
         loadIcons();
+
+        if (payment != null) {
+            payment.setup();
+        }
+        ItemSpec.strictPlainMatch(getConfig().getBoolean("match.require-plain-item", true));
+        Price.moneyDecimals(getConfig().getInt("economy.money-decimals", 2));
         shops.loadAll();
         if (guiTemplates != null) {
             guiTemplates.loadAll();
         }
-        sessions.clear();
         screens.clear();
+        sessions.clear();
     }
 
     public ItemStack pointsIcon(Player p, int amount) {
@@ -181,11 +209,19 @@ public final class ShopPlugin extends JavaPlugin {
     }
 
     public ShopScreen open(Player p, Shop shop) {
+
+        GuiTemplate tpl = guiPackets() && guiTemplates != null ? guiTemplates.pick(shop.getId()) : null;
+
+        int perPage = shop.getLayout().rows;
+        if (tpl != null && tpl.rows() > 0) {
+            perPage = Math.min(tpl.rows(), layoutRows(shop));
+        }
+
         ShopSession session = new ShopSession(p.getUniqueId(), shop,
-                getConfig().getInt("quantity.default", 1));
+                getConfig().getInt("quantity.default", 1), perPage);
+        clampQty(session);
         sessions.put(p.getUniqueId(), session);
 
-        GuiTemplate tpl = guiTemplates == null ? null : guiTemplates.pick(shop.getId());
         if (tpl != null) {
             ShopScreen old = screens.remove(p.getUniqueId());
             if (old != null) {
@@ -204,6 +240,10 @@ public final class ShopPlugin extends JavaPlugin {
         screens.put(p.getUniqueId(), screen);
         screen.openGui(p);
         return screen;
+    }
+
+    private static int layoutRows(Shop shop) {
+        return Math.max(1, shop.getLayout().rows);
     }
 
     public void refresh(Player p, ShopSession session) {
@@ -227,6 +267,15 @@ public final class ShopPlugin extends JavaPlugin {
     }
 
     public void buy(Player p, ShopScreen screen, ShopSession session) {
+        if (session == null) {
+            return;
+        }
+
+        if (!p.hasPermission("qingmingshop.use") && !p.isOp()) {
+            p.sendMessage(msg("no-permission"));
+            sound(p, "fail");
+            return;
+        }
         Product product = session.selected();
         if (product == null) {
             p.sendMessage(msg("need-select"));
@@ -239,7 +288,28 @@ public final class ShopPlugin extends JavaPlugin {
             sound(p, "fail");
             return;
         }
-        int qty = session.qty();
+        if (product.getPrice().isEmpty()) {
+
+            p.sendMessage(msg("no-price"));
+            getLogger().warning("商品「" + product.getDisplay().label() + "」没有可用的 price，已拒绝购买");
+            sound(p, "fail");
+            return;
+        }
+
+        int qty = Math.max(minQty(), Math.min(maxQty(product), session.qty()));
+        if (qty != session.qty()) {
+            session.qty(qty, minQty(), maxQty(product));
+        }
+
+        ItemStack base = product.getDisplay().build(p, 1);
+        if (base == null) {
+            p.sendMessage(msg("item-failed"));
+            getLogger().warning("商品「" + product.getDisplay().label()
+                    + "」的物品生成失败（ni 写错或 NeigeItems 未安装），已拒绝购买");
+            sound(p, "fail");
+            return;
+        }
+
         String err = payment.check(p, product, qty);
         if (err != null) {
             p.sendMessage(err);
@@ -253,28 +323,26 @@ public final class ShopPlugin extends JavaPlugin {
         }
 
         long total = (long) product.getAmount() * (long) qty;
-        total = Math.max(1, Math.min(2304L, total));
-        ItemStack base = product.getDisplay().build(p, 1);
+        total = Math.max(1, total);
         String productName = product.name(p);
-        if (base != null) {
-            ItemStack out = base.clone();
-            out.setAmount(1);
-            int left = (int) total;
-            boolean dropped = false;
-            while (left > 0) {
-                int n = Math.min(64, left);
-                ItemStack give = out.clone();
-                give.setAmount(n);
-                HashMap<Integer, ItemStack> rest = p.getInventory().addItem(give);
-                for (ItemStack r : rest.values()) {
-                    p.getWorld().dropItemNaturally(p.getLocation(), r);
-                    dropped = true;
-                }
-                left -= n;
+
+        ItemStack out = base.clone();
+        out.setAmount(1);
+        int left = (int) total;
+        boolean dropped = false;
+        while (left > 0) {
+            int n = Math.min(64, left);
+            ItemStack give = out.clone();
+            give.setAmount(n);
+            HashMap<Integer, ItemStack> rest = p.getInventory().addItem(give);
+            for (ItemStack r : rest.values()) {
+                p.getWorld().dropItemNaturally(p.getLocation(), r);
+                dropped = true;
             }
-            if (dropped) {
-                p.sendMessage(msg("inventory-full"));
-            }
+            left -= n;
+        }
+        if (dropped) {
+            p.sendMessage(msg("inventory-full"));
         }
 
         for (String cmd : product.getCommands()) {
@@ -298,6 +366,14 @@ public final class ShopPlugin extends JavaPlugin {
 
     public ShopScreen screen(Player p) {
         return screens.get(p.getUniqueId());
+    }
+
+    public void forget(Player p) {
+        if (p == null) {
+            return;
+        }
+        sessions.remove(p.getUniqueId());
+        screens.remove(p.getUniqueId());
     }
 
     public ItemSpec pointsIconSpec() {

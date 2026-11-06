@@ -10,13 +10,16 @@ public final class ShopSession {
 
     private final UUID player;
     private final Shop shop;
+
+    private final int perPage;
     private int page;
     private int selected = -1;
     private int qty;
 
-    public ShopSession(UUID player, Shop shop, int defaultQty) {
+    public ShopSession(UUID player, Shop shop, int defaultQty, int perPage) {
         this.player = player;
         this.shop = shop;
+        this.perPage = Math.max(1, perPage);
         this.qty = Math.max(1, defaultQty);
     }
 
@@ -28,13 +31,21 @@ public final class ShopSession {
         return shop;
     }
 
+    public int perPage() {
+        return perPage;
+    }
+
+    public int pageCount() {
+        int size = shop.getProducts().size();
+        return Math.max(1, (size + perPage - 1) / perPage);
+    }
+
     public int page() {
         return page;
     }
 
     public void page(int page) {
-        int max = shop.pageCount();
-        this.page = Math.max(0, Math.min(max - 1, page));
+        this.page = Math.max(0, Math.min(pageCount() - 1, page));
     }
 
     public int selectedIndex() {
@@ -44,8 +55,7 @@ public final class ShopSession {
     public void select(int index) {
         this.selected = index;
         if (index >= 0 && index < shop.getProducts().size()) {
-            int per = Math.max(1, shop.getLayout().rows);
-            this.page = index / per;
+            this.page = index / perPage;
         }
     }
 
@@ -66,6 +76,6 @@ public final class ShopSession {
     }
 
     public int firstIndexOfPage() {
-        return page * Math.max(1, shop.getLayout().rows);
+        return page * perPage;
     }
 }

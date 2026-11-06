@@ -59,12 +59,23 @@ economy:
 # 数量选择
 quantity:
   min: 1
-  max: 9999
+  # 单次最多买几个：同时受「一叠 64 个」限制，
+  # 也就是 份数 × 每份数量 不会超过 64（amount: 16 的商品最多买 4 份）
+  max: 64
   # 小箭头步长 / 双箭头步长
   step: 1
   big-step: 10
   # 打开界面时默认数量
   default: 1
+
+# 材料匹配的严格程度
+match:
+  # true：需求里配了 material 但没写 name/lore/nbt 时，
+  #       只认「没改名、没 lore」的原始物品 ——
+  #       免得玩家把自己打造的装备 / 改过名的物品当材料交上去
+  # 如果你的服务器上有插件给所有物品加 lore（属性插件之类），
+  # 导致材料收不了，就把这项改成 false
+  require-plain-item: true
 
 # 提示文本（支持 & 颜色符号）
 messages:
@@ -77,6 +88,9 @@ messages:
   inventory-full: "&e背包已满，物品掉落在脚下"
   bought: "&a购买成功：&f%item% &7×%amount%"
   need-select: "&7请先点右侧「选择」"
+  no-price: "&c这个商品没有配置价格，暂时不能购买"
+  item-failed: "&c商品发放失败，请联系管理员（未扣款）"
+  qty-max: "&e单次最多买 &f%max% &e个（一叠的量）"
   qty-hint: "&7用两侧的箭头调整数量（单箭头 1 个，双箭头 10 个）"
   reloaded: "&a商城配置已重载，共 &f%count% &a个商店"
   only-player: "&c这个命令只能玩家使用"
